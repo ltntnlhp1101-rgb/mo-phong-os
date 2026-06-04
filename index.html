@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Hệ Điều Hành - Trực Quan Hóa Cơ Chế Lõi</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { display: flex; background-color: #f4f6f9; color: #333; min-height: 100vh; }
+        
+        /* Sidebar Menu */
+        .sidebar { width: 280px; background-color: #1e5bb8; color: white; padding: 20px 0; display: flex; flex-direction: column; flex-shrink: 0; }
+        .logo-area { text-align: center; padding: 15px 10px; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 20px; }
+        .logo-area h3 { font-size: 20px; text-transform: uppercase; letter-spacing: 1px; color: #ffcc00; font-weight: 800; line-height: 1.4; }
+        .logo-area p { font-size: 11px; opacity: 0.8; margin-top: 5px; letter-spacing: 0.5px; color: #ffffff; }
+        .menu-item { padding: 15px 25px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; font-weight: 500; gap: 10px; }
+        .menu-item:hover, .menu-item.active { background-color: #15438c; border-left: 5px solid #ffcc00; }
+        
+        /* Khung nội dung chính */
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; }
+        .header-title { border-bottom: 2px solid #1e5bb8; padding-bottom: 10px; margin-bottom: 20px; color: #1e5bb8; }
+        
+        /* Panel và Grid Layout */
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        
+        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; color: #444; }
+        input, select, button { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        
+        /* Kiểu dáng nút bấm */
+        button { font-weight: bold; cursor: pointer; border: none; transition: 0.3s; color: white; }
+        .btn-primary { background-color: #1e5bb8; } .btn-primary:hover { background-color: #15438c; }
+        .btn-success { background-color: #2ecc71; } .btn-success:hover { background-color: #27ae60; }
+        .btn-danger { background-color: #e74c3c; } .btn-danger:hover { background-color: #c0392b; }
+        
+        /* Bảng hiển thị */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; font-size: 13px; }
+        table, th, td { border: 1px solid #ddd; }
+        th, td { padding: 10px; text-align: center; }
+        th { background-color: #f8f9fa; color: #333; }
+
+        /* Biểu đồ Gantt */
+        .algo-compare-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+        .algo-title { font-weight: bold; color: #1e5bb8; margin-bottom: 8px; font-size: 14px; display: flex; justify-content: space-between; }
+        .gantt-container { display: flex; background: #eaedf2; border-radius: 4px; overflow: hidden; border: 1px solid #cbd5e1; min-height: 40px; }
+        .gantt-block { display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-weight: bold; font-size: 11px; min-height: 40px; border-right: 1px solid rgba(255,255,255,0.2); text-shadow: 1px 1px 1px rgba(0,0,0,0.4); }
+        .gantt-timeline { display: flex; justify-content: space-between; padding: 3px 5px 0 5px; font-family: monospace; font-size: 11px; color: #777; margin-bottom: 10px; }
+        
+        /* Trực quan bộ nhớ RAM */
+        .ram-container { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+        .ram-block { border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; transition: 0.3s; color: white; }
+        
+        /* Hoạt họa đồng bộ hóa */
+        .sync-visual { display: flex; align-items: center; justify-content: space-around; background: #f8fafc; padding: 25px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 15px; }
+        .actor { padding: 20px; border-radius: 8px; text-align: center; font-weight: bold; color: white; width: 120px; }
+        .buffer-box { display: flex; gap: 5px; background: #ddd; padding: 10px; border-radius: 6px; min-width: 200px; justify-content: center; min-height: 42px; }
+        .buffer-item { width: 30px; height: 30px; background: #f1c40f; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; animation: pulse 0.5s infinite alternate; }
+
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.05); } }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="logo-area">
+            <h3>Mô Phỏng<br>Hệ Điều Hành</h3>
+            <p>Trực Quan Hóa Cơ Chế Lõi</p>
+        </div>
+        <div class="menu-item active" onclick="switchTab('cpu-tab', this)"><i class="fa-solid fa-cpu"></i> 1. Lập lịch CPU</div>
+        <div class="menu-item" onclick="switchTab('memory-tab', this)"><i class="fa-solid fa-memory"></i> 2. Quản lý Bộ nhớ</div>
+        <div class="menu-item" onclick="switchTab('sync-tab', this)"><i class="fa-solid fa-arrows-spin"></i> 3. Đồng bộ hóa</div>
+    </div>
+
+    <div class="main-content">
+        
+        <div id="cpu-tab" class="tab-content active">
+            <h2 class="header-title">Cơ Chế 1: Tiến Trình & Lập Lịch CPU (So Sánh Đánh Giá Hiệu Năng)</h2>
+            <div class="grid-2">
+                <div class="panel">
+                    <h3>Cấu hình luồng tiến trình đầu vào (Tự nhập)</h3>
+                    <div class="grid-3" style="margin-top: 15px;">
+                        <div><label>Tên tiến trình:</label><input type="text" id="cpu-pid" placeholder="P1"></div>
+                        <div><label>Thời điểm đến:</label><input type="number" id="cpu-arrival" value="0" min="0"></div>
+                        <div><label>Thời gian chạy:</label><input type="number" id="cpu-burst" value="4" min="1"></div>
+                    </div>
+                    <button class="btn-success" onclick="addCPUProcess()">+ Thêm tiến trình</button>
+                </div>
+                <div class="panel">
+                    <h3>Tham số điều phối hệ thống</h3>
+                    <label>Time Quantum (Vòng tròn Round Robin):</label>
+                    <input type="number" id="cpu-quantum" value="2" min="1">
+                    <button class="btn-primary" onclick="executeCPUScheduling()">⚡ KÍCH HOẠT CHẠY SO SÁNH ĐỒNG THỜI</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3>Bảng dữ liệu tiến trình thực tế</h3>
+                    <button class="btn-danger" style="width:auto; padding:5px 15px;" onclick="clearCPUData()">Xóa sạch danh sách</button>
+                </div>
+                <table id="cpu-table">
+                    <thead><tr><th>Mã Tiến Trình (PID)</th><th>Thời điểm đến (Arrival Time)</th><th>Thời gian thực thi (Burst Time)</th></tr></thead>
+                    <tbody><tr id="cpu-empty"><td colspan="3" style="color:#888;">Chưa có tiến trình nào được nhập.</td></tr></tbody>
+                </table>
+            </div>
+
+            <div class="grid-2">
+                <div class="panel">
+                    <h3>Biểu đồ thực thi Gantt Chart trực quan</h3>
+                    <div style="margin-top: 15px;">
+                        <div class="algo-compare-card">
+                            <div class="algo-title"><span>1. First Come First Served (FCFS)</span><span id="txt-fcfs" style="color:#e74c3c"></span></div>
+                            <div id="gantt-fcfs" class="gantt-container"></div><div id="tl-fcfs" class="gantt-timeline"></div>
+                        </div>
+                        <div class="algo-compare-card">
+                            <div class="algo-title"><span>2. Shortest Job First (SJF)</span><span id="txt-sjf" style="color:#2ecc71"></span></div>
+                            <div id="gantt-sjf" class="gantt-container"></div><div id="tl-sjf" class="gantt-timeline"></div>
+                        </div>
+                        <div class="algo-compare-card">
+                            <div class="algo-title"><span>3. Round Robin (RR)</span><span id="txt-rr" style="color:#3498db"></span></div>
+                            <div id="gantt-rr" class="gantt-container"></div><div id="tl-rr" class="gantt-timeline"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h3>Đánh giá hiệu năng hệ thống (Đồ thị hóa)</h3>
+                    <canvas id="cpuChart" width="400" height="180"></canvas>
+                    <table id="cpu-summary-table" style="margin-top: 15px;">
+                        <thead><tr><th>PID</th><th>Chờ FCFS</th><th>Chờ SJF</th><th>Chờ RR</th></tr></thead>
+                        <tbody><tr><td colspan="4" style="color:#888">Chưa có dữ liệu phân tích</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="memory-tab" class="tab-content">
+            <h2 class="header-title">Cơ Chế 2: Phân Hoạch Bộ Nhớ RAM (Tự Nhập & Cấp Phát Không Gian)</h2>
+            <div class="grid-2">
+                <div class="panel">
+                    <h3>Cấu hình Tiến trình xin cấp phát RAM</h3>
+                    <label>Tên tiến trình cần chạy:</label>
+                    <input type="text" id="mem-pid" placeholder="Ví dụ: App_Chrome">
+                    <label>Kích thước bộ nhớ yêu cầu (KB):</label>
+                    <input type="number" id="mem-size" value="100" min="1">
+                    <label>Giải thuật tìm vùng trống:</label>
+                    <select id="mem-algo">
+                        <option value="first">First Fit (Vùng trống đầu tiên tìm thấy)</option>
+                        <option value="best">Best Fit (Vùng trống khít nhất tối ưu phân mảnh)</option>
+                    </select>
+                    <button class="btn-success" onclick="allocateMemory()">Thực thi cấp phát bộ nhớ</button>
+                    <button class="btn-danger" style="margin-top: 5px;" onclick="resetMemory()">Giải phóng, đưa RAM về mặc định</button>
+                </div>
+                <div class="panel">
+                    <h3>Trực quan hóa Bản đồ không gian RAM (Tổng 1000 KB)</h3>
+                    <div id="ram-visualizer" class="ram-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sync-tab" class="tab-content">
+            <h2 class="header-title">Cơ Chế 3: Đồng Bộ Hóa Tiến Trình & Tránh Xung Đột Dữ Liệu</h2>
+            <div class="panel">
+                <h3>Mô phỏng tránh xung đột bằng Semaphore / Mutex</h3>
+                <p style="color:#666; margin-bottom: 15px;">Trực quan hóa cơ chế đồng bộ hóa khi hai thực thể cùng thao tác trên một vùng đệm chia sẻ chung (Buffer) giới hạn tối đa 5 vị trí trống nhằm tránh lỗi tranh chấp dữ liệu (Race Condition).</p>
+                <div class="grid-3">
+                    <button class="btn-primary" onclick="startProducer()">🏭 Kích hoạt Người sản xuất (Tạo dữ liệu)</button>
+                    <button class="btn-success" onclick="startConsumer()">🛒 Kích hoạt Người tiêu dùng (Lấy dữ liệu)</button>
+                    <button class="btn-danger" onclick="resetSync()">Làm rỗng vùng đệm</button>
+                </div>
+                <div class="sync-visual">
+                    <div class="actor" id="producer-node" style="background:#1e5bb8;">PRODUCER<br><span id="prod-status" style="font-size:11px;font-weight:normal">Đang chờ...</span></div>
+                    <div>
+                        <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">Shared Buffer (Kho hàng tối đa 5 phần tử)</div>
+                        <div class="buffer-box" id="shared-buffer"></div>
+                    </div>
+                    <div class="actor" id="consumer-node" style="background:#2ecc71;">CONSUMER<br><span id="cons-status" style="font-size:11px;font-weight:normal">Đang chờ...</span></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // QUẢN LÝ TAB MENU
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            element.classList.add('active');
+        }
+
+        /* LOGIC MODULE 1: LẬP LỊCH CPU */
+        let cpuProcesses = [];
+        let cpuChartInstance = null;
+        const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c'];
+
+        function addCPUProcess() {
+            const pidIn = document.getElementById('cpu-pid');
+            const arrIn = document.getElementById('cpu-arrival');
+            const burIn = document.getElementById('cpu-burst');
+            let id = pidIn.value.trim() || 'P' + cpuProcesses.length;
+            let arrival = parseInt(arrIn.value) || 0;
+            let burst = parseInt(burIn.value) || 1;
+
+            if (cpuProcesses.some(p => p.id === id)) { alert('Mã tiến trình bị trùng!'); return; }
+            cpuProcesses.push({ id, arrival, burst });
+            pidIn.value = ''; arrIn.value = '0'; burIn.value = '5';
+            renderCPUInputTable();
+        }
+
+        function clearCPUData() {
+            cpuProcesses = [];
+            renderCPUInputTable();
+            document.getElementById('gantt-fcfs').innerHTML = ''; document.getElementById('tl-fcfs').innerHTML = '';
+            document.getElementById('gantt-sjf').innerHTML = ''; document.getElementById('tl-sjf').innerHTML = '';
+            document.getElementById('gantt-rr').innerHTML = ''; document.getElementById('tl-rr').innerHTML = '';
+            document.getElementById('txt-fcfs').innerText = ''; document.getElementById('txt-sjf').innerText = ''; document.getElementById('txt-rr').innerText = '';
+            document.querySelector('#cpu-summary-table tbody').innerHTML = '<tr><td colspan="4" style="color:#888">Chưa có dữ liệu phân tích</td></tr>';
+            if(cpuChartInstance) cpuChartInstance.destroy();
+        }
+
+        function renderCPUInputTable() {
+            const tbody = document.querySelector('#cpu-table tbody');
+            if (cpuProcesses.length === 0) {
+                tbody.innerHTML = '<tr id="cpu-empty"><td colspan="3" style="color:#888;">Chưa có tiến trình nào được nhập.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = cpuProcesses.map(p => `<tr><td><strong>${p.id}</strong></td><td>${p.arrival}</td><td>${p.burst}</td></tr>`).join('');
+        }
+
+        function executeCPUScheduling() {
+            if (cpuProcesses.length === 0) { alert('Vui lòng thêm tiến trình đầu vào!'); return; }
+            const quantum = parseInt(document.getElementById('cpu-quantum').value) || 2;
+
+            // 1. Tính toán FCFS
+            let fList = cpuProcesses.map((p,i) => ({...p, color: colors[i % colors.length]})).sort((a,b)=>a.arrival - b.arrival);
+            let fTime = 0, fTimeline = [], fData = {};
+            fList.forEach(p => {
+                if (fTime < p.arrival) fTime = p.arrival;
+                let start = fTime; fTime += p.burst;
+                fTimeline.push({ id: p.id, start, end: fTime, color: p.color });
+                fData[p.id] = { wait: (fTime - p.arrival) - p.burst };
+            });
+
+            // 2. Tính toán SJF
+            let sPool = cpuProcesses.map((p,i) => ({...p, color: colors[i % colors.length]}));
+            let sTime = 0, sTimeline = [], sData = {};
+            while(sPool.length > 0) {
+                let ready = sPool.filter(p => p.arrival <= sTime);
+                if(ready.length === 0) { sTime = sPool.sort((a,b)=>a.arrival-b.arrival)[0].arrival; continue; }
+                ready.sort((a,b) => a.burst - b.burst);
+                let p = ready[0];
+                let start = sTime; sTime += p.burst;
+                sTimeline.push({ id: p.id, start, end: sTime, color: p.color });
+                sData[p.id] = { wait: (sTime - p.arrival) - p.burst };
+                sPool = sPool.filter(x => x.id !== p.id);
+            }
+
+            // 3. Tính toán Round Robin
+            let rList = cpuProcesses.map((p,i) => ({...p, rem: p.burst, color: colors[i % colors.length]})).sort((a,b)=>a.arrival - b.arrival);
+            let rTime = 0, rTimeline = [], rData = {}, rQueue = [];
+            let rPool = [...rList];
+            if(rPool.length > 0) rQueue.push(rPool.shift());
+            while(rQueue.length > 0) {
+                let p = rQueue.shift();
+                if (rTime < p.arrival) rTime = p.arrival;
+                let run = Math.min(p.rem, quantum);
+                let start = rTime; rTime += run; p.rem -= run;
+                rTimeline.push({ id: p.id, start, end: rTime, color: p.color });
+                while(rPool.length > 0 && rPool[0].arrival <= rTime) rQueue.push(rPool.shift());
+                if (p.rem > 0) rQueue.push(p);
+                else rData[p.id] = { wait: (rTime - p.arrival) - p.burst };
+                if (rQueue.length === 0 && rPool.length > 0) { rTime = rPool[0].arrival; rQueue.push(rPool.shift()); }
+            }
+
+            // Vẽ đồ thị kết quả Gantt
+            drawGanttBars('gantt-fcfs', 'tl-fcfs', fTimeline);
+            drawGanttBars('gantt-sjf', 'tl-sjf', sTimeline);
+            drawGanttBars('gantt-rr', 'tl-rr', rTimeline);
+
+            // Xuất bảng tổng hợp kết quả
+            let fAvg = 0, sAvg = 0, rAvg = 0;
+            let sumHtml = cpuProcesses.map(p => {
+                let fw = fData[p.id].wait, sw = sData[p.id].wait, rw = rData[p.id].wait;
+                fAvg += fw; sAvg += sw; rAvg += rw;
+                return `<tr><td><strong>${p.id}</strong></td><td style="color:#e74c3c; font-weight:bold;">${fw}s</td><td style="color:#2ecc71; font-weight:bold;">${sw}s</td><td style="color:#3498db; font-weight:bold;">${rw}s</td></tr>`;
+            }).join('');
+            document.querySelector('#cpu-summary-table tbody').innerHTML = sumHtml;
+
+            fAvg /= cpuProcesses.length; sAvg /= cpuProcesses.length; rAvg /= cpuProcesses.length;
+            document.getElementById('txt-fcfs').innerText = `(Avg Waiting: ${fAvg.toFixed(1)}s)`;
+            document.getElementById('txt-sjf').innerText = `(Avg Waiting: ${sAvg.toFixed(1)}s)`;
+            document.getElementById('txt-rr').innerText = `(Avg Waiting: ${rAvg.toFixed(1)}s)`;
+
+            // Đổ dữ liệu đồ thị Chart.js
+            renderCPUChartJS(fAvg, sAvg, rAvg);
+        }
+
+        function drawGanttBars(cId, tId, timeline) {
+            const container = document.getElementById(cId);
+            const tl = document.getElementById(tId);
+            container.innerHTML = ''; tl.innerHTML = '';
+            let max = timeline[timeline.length - 1].end;
+            let lbl = '<span>0</span>';
+            timeline.forEach(b => {
+                let pct = ((b.end - b.start) / max) * 100;
+                container.innerHTML += `<div class="gantt-block" style="width:${pct}%; background:${b.color}">${b.id}</div>`;
+                lbl += `<span style="width:${pct}%; text-align:right;">${b.end}</span>`;
+            });
+            tl.innerHTML = lbl;
+        }
+
+        function renderCPUChartJS(f, s, r) {
+            const ctx = document.getElementById('cpuChart').getContext('2d');
+            if(cpuChartInstance) cpuChartInstance.destroy();
+            cpuChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['FCFS', 'SJF', 'Round Robin'],
+                    datasets: [{ label: 'Thời gian chờ trung bình (s)', data: [f, s, r], backgroundColor: ['#e74c3c', '#2ecc71', '#3498db'] }]
+                },
+                options: { scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        /* LOGIC MODULE 2: QUẢN LÝ BỘ NHỚ RAM */
+        let ramBlocks = [
+            { id: 1, size: 150, status: 'Trống', process: '-' },
+            { id: 2, size: 300, status: 'Trống', process: '-' },
+            { id: 3, size: 200, status: 'Trống', process: '-' },
+            { id: 4, size: 350, status: 'Trống', process: '-' }
+        ];
+
+        function showMemoryMap() {
+            const container = document.getElementById('ram-visualizer');
+            container.innerHTML = '';
+            ramBlocks.forEach(b => {
+                let color = b.status === 'Đã Cấp Phát' ? '#e74c3c' : '#2ecc71';
+                container.innerHTML += `<div class="ram-block" style="background:${color}">
+                    <span>Phân khu ${b.id} [Kích thước vùng: ${b.size} KB]</span>
+                    <span>Trạng thái: ${b.status} (${b.process})</span>
+                </div>`;
+            });
+        }
+
+        function allocateMemory() {
+            const name = document.getElementById('mem-pid').value.trim() || 'Unamed_App';
+            const size = parseInt(document.getElementById('mem-size').value) || 0;
+            const algo = document.getElementById('mem-algo').value;
+            let foundIndex = -1;
+
+            if (algo === 'first') {
+                for(let i=0; i<ramBlocks.length; i++) {
+                    if (ramBlocks[i].status === 'Trống' && ramBlocks[i].size >= size) { foundIndex = i; break; }
+                }
+            } else {
+                let minDiff = Infinity;
+                for(let i=0; i<ramBlocks.length; i++) {
+                    if (ramBlocks[i].status === 'Trống' && ramBlocks[i].size >= size) {
+                        let diff = ramBlocks[i].size - size;
+                        if (diff < minDiff) { minDiff = diff; foundIndex = i; }
+                    }
+                }
+            }
+
+            if (foundIndex !== -1) {
+                ramBlocks[foundIndex].status = 'Đã Cấp Phát';
+                ramBlocks[foundIndex].process = `${name} (${size}KB)`;
+                showMemoryMap();
+            } else {
+                alert('Lỗi: Không tìm thấy phân khu RAM nào đủ chỗ cho tiến trình này!');
+            }
+        }
+
+        function resetMemory() {
+            ramBlocks = [
+                { id: 1, size: 150, status: 'Trống', process: '-' },
+                { id: 2, size: 300, status: 'Trống', process: '-' },
+                { id: 3, size: 200, status: 'Trống', process: '-' },
+                { id: 4, size: 350, status: 'Trống', process: '-' }
+            ];
+            showMemoryMap();
+        }
+
+        /* LOGIC MODULE 3: ĐỒNG BỘ HÓA TIẾN TRÌNH */
+        let buffer = [];
+        const maxBuffer = 5;
+
+        function refreshBufferUI() {
+            const container = document.getElementById('shared-buffer');
+            container.innerHTML = '';
+            buffer.forEach(item => {
+                container.innerHTML += `<div class="buffer-item">${item}</div>`;
+            });
+            if(buffer.length === 0) container.innerHTML = '<span style="color:#aaa; line-height:30px;">Vùng đệm trống</span>';
+        }
+
+        function startProducer() {
+            const pNode = document.getElementById('producer-node');
+            const pStatus = document.getElementById('prod-status');
+            pNode.style.background = '#f1c40f'; pStatus.innerText = 'Đang kiểm tra...';
+            setTimeout(() => {
+                if(buffer.length >= maxBuffer) {
+                    pNode.style.background = '#e74c3c'; pStatus.innerText = 'HÀNG ĐỢI ĐẦY (Bị Khóa)';
+                } else {
+                    buffer.push('D');
+                    pNode.style.background = '#1e5bb8'; pStatus.innerText = 'Đã đẩy 1 dữ liệu';
+                    refreshBufferUI();
+                }
+            }, 400);
+        }
+
+        function startConsumer() {
+            const cNode = document.getElementById('consumer-node');
+            const cStatus = document.getElementById('cons-status');
+            cNode.style.background = '#f1c40f'; cStatus.innerText = 'Đang kiểm tra...';
+            setTimeout(() => {
+                if(buffer.length === 0) {
+                    cNode.style.background = '#e74c3c'; cStatus.innerText = 'RỖNG (Chờ dữ liệu)';
+                } else {
+                    buffer.pop();
+                    cNode.style.background = '#2ecc71'; cStatus.innerText = 'Đã lấy 1 dữ liệu';
+                    refreshBufferUI();
+                }
+            }, 400);
+        }
+
+        function resetSync() { buffer = []; refreshBufferUI(); }
+
+        window.onload = function() {
+            showMemoryMap();
+            refreshBufferUI();
+        }
+    </script>
+</body>
+</html>
